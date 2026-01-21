@@ -1,0 +1,6 @@
+data/
+debug_logs/
+temp_ingest_*.html
+temp_ingest_*.txt
+__pycache__/
+*.pyc
