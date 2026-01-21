@@ -23,10 +23,16 @@ chmod +x contextrag.py
 ContextRAG operates via subcommands.
 
 ### 1. Resolve URLs (Optional)
-Find URLs for a query.
+Find URLs for a query. Default provider is DuckDuckGo, with Bing optional.
 
 ```bash
 ./contextrag.py resolve "James Webb Telescope launch date"
+```
+
+Use Bing explicitly if needed.
+
+```bash
+./contextrag.py resolve "James Webb Telescope launch date" --provider bing
 ```
 
 ### 2. Ingest Data

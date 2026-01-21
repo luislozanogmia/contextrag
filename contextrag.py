@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-contextrag.py – enhanced web RAG utilities (standalone, stdlib-only)
+contextrag.py - enhanced web RAG utilities (standalone, stdlib-only)
 
 Enhanced for exact fact retrieval with improved extraction and ranking.
 
@@ -43,7 +43,7 @@ from urllib.parse import urlparse, parse_qs, unquote, urljoin
 DATA_DIR = os.path.join(os.getcwd(), "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
-DEFAULT_UA = "ContextRAG-Agent/0.2 (+https://github.com/yourusername/contextrag)"
+DEFAULT_UA = "ContextRAG-Agent/0.2 (+https://github.com/luislozanogmia/contextrag)"
 REQUEST_TIMEOUT = 20
 
 REF_TOKENS = {"retrieved", "doi", "isbn", "pmid", "s2cid", "bibcode", "arxiv", "cite", "citation"}
@@ -185,23 +185,23 @@ def normalize_ws(text: str) -> str:
 def normalize_unicode(text: str) -> str:
     """Normalize Unicode characters for better matching (ASCII-safe mapping)."""
     replacements = {
-        "\u00D7": "x",      # × multiplication sign
-        "\u2212": "-",      # − minus sign
-        "\u2013": "-",      # – en dash
-        "\u2014": "-",      # — em dash
+        "\u00D7": "x",      # x multiplication sign
+        "\u2212": "-",      # - minus sign
+        "\u2013": "-",      # - en dash
+        "\u2014": "-",      # - em dash
         "\u201C": '"',      # " left double quote
         "\u201D": '"',      # " right double quote
         "\u2018": "'",      # ' left single quote
         "\u2019": "'",      # ' right single quote
-        "\u2026": "...",    # … ellipsis
-        # superscripts → caret notation
+        "\u2026": "...",    # ... ellipsis
+        # superscripts -> caret notation
         "\u2070": "^0", "\u00B9": "^1", "\u00B2": "^2", "\u00B3": "^3",
         "\u2074": "^4", "\u2075": "^5", "\u2076": "^6", "\u2077": "^7",
         "\u2078": "^8", "\u2079": "^9",
     }
     for old, new in replacements.items():
         text = text.replace(old, new)
-    # normalize spaced scientific notation: "1.2 × 10 ^ 6" -> "1.2 x 10^6"
+    # normalize spaced scientific notation: "1.2 x 10 ^ 6" -> "1.2 x 10^6"
     text = re.sub(r"(\d(?:\.\d+)?)\s*(?:x|\u00D7)\s*10\s*\^?\s*(\d+)", r"\1 x 10^\2", text)
     return text
 
@@ -236,7 +236,7 @@ def _save_debug_html(html: str, engine: str, query: str) -> None:
     debug_file = os.path.join(base_dir, f"debug_serp_{engine}_{safe_query}.html")
     with open(debug_file, "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"[ContextRAG] Debug SERP HTML saved → {debug_file}", file=sys.stderr)
+    print(f"[ContextRAG] Debug SERP HTML saved -> {debug_file}", file=sys.stderr)
 
 def _dedupe_urls(urls: List[str], max_results: int) -> List[str]:
     """Generic URL deduplication and limiting."""
@@ -400,17 +400,26 @@ def _search_duckduckgo(query: str, top: int = 3) -> List[str]:
 
 # ----------------------------- Main Search Resolver -----------------------------
 
-def resolve_query_to_urls(query: str, provider: str = "bing", top: int = 3) -> List[str]:
-    """Resolve search query to destination URLs using DuckDuckGo only."""
-    
-    # Skip Bing entirely for now
-    print(f"Searching with DuckDuckGo for: {query}", file=sys.stderr)
-    urls = _search_duckduckgo(query, top)
-    
-    if not urls:
-        print("No URLs resolved from DuckDuckGo. Cannot proceed with ingestion.", file=sys.stderr)
-    
-    return urls
+def resolve_query_to_urls(query: str, provider: str = "duckduckgo", top: int = 3) -> List[str]:
+    """Resolve search query to destination URLs using the selected provider."""
+    provider = (provider or "duckduckgo").lower()
+
+    if provider in ("ddg", "duckduckgo"):
+        print(f"Searching with DuckDuckGo for: {query}", file=sys.stderr)
+        urls = _search_duckduckgo(query, top)
+        if not urls:
+            print("No URLs resolved from DuckDuckGo. Cannot proceed with ingestion.", file=sys.stderr)
+        return urls
+
+    if provider == "bing":
+        print(f"Searching with Bing for: {query}", file=sys.stderr)
+        urls = _search_bing(query, top)
+        if not urls:
+            print("No URLs resolved from Bing. Cannot proceed with ingestion.", file=sys.stderr)
+        return urls
+
+    print(f"Unknown provider '{provider}', defaulting to DuckDuckGo.", file=sys.stderr)
+    return _search_duckduckgo(query, top)
 
 # Backward compatibility - keep old function names
 extract_bing_result_urls = _extract_bing_urls  # For any existing references
@@ -641,9 +650,9 @@ def html_bytes_to_enhanced_text(raw: bytes) -> Tuple[str, str, List[str]]:
 SENT_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9])")
 # Enhanced patterns for data-focused extraction
 MEASUREMENT_PATTERNS = [
-    r"\b\w+: \s*[\d.,]+\s*(?:km|kg|m|tons?|miles?|meters?|kilometers?|Â°C|Â°F|years?|days?)\b",
+    r"\b\w+:\s*[\d.,]+\s*(?:km|kg|m|tons?|miles?|meters?|kilometers?|C|F|years?|days?)\b",
     r"\b(?:diameter|radius|mass|volume|temperature|distance|height|width|depth|area|density|speed|velocity|acceleration|pressure):\s*[\d.,]+",
-    r"\b[\d.,]+\s*(?:Ã—|x|\*)\s*10\^?[ -]+\s*(?:kg|km|m|tons?|years?)",  # Scientific notation
+    r"\b[\d.,]+\s*(?:x|\*)\s*10\^?[-+]?\d+\s*(?:kg|km|m|tons?|years?)",  # Scientific notation
     r"\b[\d.,]+\s*(?:million|billion|trillion)\s*(?:km|kg|tons?|years?|miles?)",
     r"\b[\d.,]+\s*(?:km|miles?|meters?)\s*(?:diameter|radius|wide|long|tall|high|deep)\b",
 ]
@@ -716,7 +725,7 @@ def enhanced_text_to_snippets(text: str, infobox_lines: Optional[List[str]] = No
         return snippets
     
     # Turn bullet markers into sentence boundaries
-    text = re.sub(r"\s*[â€¢\-\u2022]\s+", ". ", text)
+    text = re.sub(r"\s*[*\-\u2022]\s+", ". ", text)
     
     sentences: List[str] = []
     for sent in SENT_SPLIT_RE.split(text):
@@ -913,7 +922,7 @@ class EnhancedBM25:
             boost += 0.2  # Some boost for numeric content
         
         # Scientific notation boost (common in measurements)
-        if re.search(r"\d+(\.\d+)?\s*Ã—\s*10", doc.text):
+        if re.search(r"\d+(\.\d+)?\s*x\s*10", doc.text):
             boost += 0.15
         
         return boost
@@ -1320,8 +1329,8 @@ def cmd_compose(a: argparse.Namespace) -> int:
 def cmd_resolve(a: argparse.Namespace) -> int:
     """Resolve search query to destination URLs."""
     urls = resolve_query_to_urls(
-        a.query, 
-        provider=getattr(a, 'provider', 'google'), 
+        a.query,
+        provider=getattr(a, 'provider', 'duckduckgo'),
         top=getattr(a, 'top', 3)
     )
     
@@ -1336,13 +1345,13 @@ def cmd_resolve(a: argparse.Namespace) -> int:
     return 0
 
 def cmd_ingest(a: argparse.Namespace) -> int:
-    """One-shot convenience: resolve → fetch → extract → snippetize."""
+    """One-shot convenience: resolve -> fetch -> extract -> snippetize."""
     print(f"Resolving query: '{a.query}'")
     
     # Resolve URLs
     urls = resolve_query_to_urls(
         a.query,
-        provider=getattr(a, 'provider', 'google'),
+        provider=getattr(a, 'provider', 'duckduckgo'),
         top=getattr(a, 'top', 3)
     )
     
@@ -1576,8 +1585,8 @@ def build_enhanced_parser() -> argparse.ArgumentParser:
     pf.add_argument("--to-file", dest="to_file")
     pf.add_argument("--show-headers", action="store_true")
     pf.add_argument("--ignore-robots", action="store_true")
-    pf.add_argument("--allow-serp", action="store_true", 
-                   help="Allow fetching Google SERPs directly (not recommended)")
+    pf.add_argument("--allow-serp", action="store_true",
+                   help="Allow fetching SERP pages directly (not recommended)")
     pf.add_argument("--timeout", type=int, default=REQUEST_TIMEOUT)
     pf.add_argument("--decode", choices=["auto", "utf-8", "latin-1", "none"], default="auto")
     pf.set_defaults(func=cmd_fetch)
@@ -1601,16 +1610,16 @@ def build_enhanced_parser() -> argparse.ArgumentParser:
     # resolve - new URL discovery command
     presolve = sub.add_parser("resolve", help="Resolve search query to destination URLs")
     presolve.add_argument("query", help="Search query")
-    presolve.add_argument("--provider", choices=["google"], default="google",
+    presolve.add_argument("--provider", choices=["duckduckgo", "bing"], default="duckduckgo",
                          help="Search provider")
     presolve.add_argument("--top", type=int, default=3,
                          help="Number of URLs to return")
     presolve.set_defaults(func=cmd_resolve)
 
     # ingest - new convenience command
-    pingest = sub.add_parser("ingest", help="One-shot: resolve → fetch → extract → snippetize")
+    pingest = sub.add_parser("ingest", help="One-shot: resolve -> fetch -> extract -> snippetize")
     pingest.add_argument("query", help="Search query")
-    pingest.add_argument("--provider", choices=["google"], default="google")
+    pingest.add_argument("--provider", choices=["duckduckgo", "bing"], default="duckduckgo")
     pingest.add_argument("--top", type=int, default=1,
                         help="Number of URLs to process")
     pingest.add_argument("--title", choices=["auto", "manual"], default="auto",
